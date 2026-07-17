@@ -48,9 +48,9 @@
     W = w; H = h;
   }
   function resize() {
-    var rect = canvas.parentElement.getBoundingClientRect();
     var dpr = window.devicePixelRatio || 1;
-    var w = Math.round(rect.width), h = Math.round(rect.height);
+    // size to the full viewport (canvas-wrap is fixed inset:0), covers safe-areas
+    var w = Math.round(window.innerWidth), h = Math.round(window.innerHeight);
     canvas.width = w * dpr; canvas.height = h * dpr;
     canvas.style.width = w + "px"; canvas.style.height = h + "px";
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale(dpr, dpr);
@@ -92,13 +92,19 @@
     }
     requestAnimationFrame(draw);
   }
-  window.addEventListener("mousemove", function (e) {
-    var r = canvas.parentElement.getBoundingClientRect();
-    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) { pointer = null; return; }
+  // pointer events cover mouse + touch + pen. passive:true so we never block the
+  // dial drag, dropdowns, toggle or scroll. canvas is pointer-events:none, so this
+  // only observes coordinates; it never intercepts a tap meant for a control.
+  function setPointer(e) {
+    var r = canvas.getBoundingClientRect();
     pointer = { x: e.clientX - r.left, y: e.clientY - r.top };
-  });
+  }
+  window.addEventListener("pointermove", setPointer, { passive: true });
+  window.addEventListener("pointerdown", setPointer, { passive: true });   // taps trigger it too
+  window.addEventListener("pointerup", function () { pointer = null; }, { passive: true });
+  window.addEventListener("pointercancel", function () { pointer = null; }, { passive: true });
   window.addEventListener("mouseleave", function () { pointer = null; });
-  new ResizeObserver(resize).observe(canvas.parentElement);
+  new ResizeObserver(resize).observe(document.documentElement);
   resize();
   requestAnimationFrame(draw);
 })();

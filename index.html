@@ -46,14 +46,18 @@ html[data-theme="dark"] {
   --glass-blur: blur(26px) saturate(1.5);
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { height: 100%; }
+/* background lives on html so it fills iOS safe-areas (no black bars / grey strip) */
+html {
+  min-height: 100%;
+  background: var(--canvas) radial-gradient(120% 90% at 50% 0%, var(--canvas-2), var(--canvas) 60%) fixed;
+  transition: background .5s ease;
+}
 body {
-  background:
-    radial-gradient(120% 90% at 50% 0%, var(--canvas-2), var(--canvas) 60%);
+  min-height: 100dvh;
   color: var(--text);
   font-family: "Google Sans", system-ui, sans-serif;
-  overflow-x: hidden; min-height: 100vh;
-  transition: background .5s ease, color .5s ease;
+  overflow-x: hidden;
+  transition: color .5s ease;
 }
 /* dot grid: canvas physics sim (stitch port). cursor pushes dots, they chase back. */
 .dot-canvas-wrap { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
