@@ -1,4 +1,5 @@
 (function () {
+  var VERSION = "0.1.0"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
   var $ = function (id) { return document.getElementById(id); };
   var SIZE = 600, CX = 300, CY = 300;
   var GAP = 13;                       // gap dial->dial AND outer-dial->glass-rim (equal)
@@ -152,59 +153,13 @@
     });
     drawNumbers(OUTER, altR, rotOuter);
     drawNumbers(INNER, altL, 0);
+    $("labelInner").textContent = zL.city;
+    $("labelOuter").textContent = zR.city;
   }
 
   function fmtOffset(min) {
     var s = min < 0 ? "-" : "+", a = Math.abs(min);
     return "UTC" + s + String(Math.floor(a / 60)).padStart(2, "0") + ":" + String(a % 60).padStart(2, "0");
-  }
-
-  // ---- drag the dial to rotate the outer ring -------------------------------
-  var drag = { on: false, startAngle: 0, startOff: 0, pending: false };
-  function angleOf(ev) {
-    var r = dial.getBoundingClientRect();
-    var pt = ev.touches && ev.touches[0] ? ev.touches[0] : ev;
-    return Math.atan2(pt.clientY - (r.top + r.height / 2), pt.clientX - (r.left + r.width / 2)) * 180 / Math.PI;
-  }
-  function dragDown(ev) {
-    drag.on = true; drag.startAngle = angleOf(ev); drag.startOff = offset(state.right, new Date());
-    dial.classList.add("grabbing");
-    ev.preventDefault();
-  }
-  function dragMove(ev) {
-    if (!drag.on || drag.pending) return;
-    drag.pending = true;
-    requestAnimationFrame(function () {
-      drag.pending = false;
-      var hoursDelta = Math.round((angleOf(ev) - drag.startAngle) / 15);
-      var tz = zoneAtOffset(drag.startOff + hoursDelta * 60);
-      if (tz && tz !== state.right) {
-        state.right = tz;
-        $("selRight").value = tz;   // option already exists — no rebuild
-        render();
-      }
-    });
-    ev.preventDefault();
-  }
-  function dragUp() {
-    if (!drag.on) return;
-    drag.on = false; dial.classList.remove("grabbing");
-    fillSelect($("selRight"), state.right); // resync full list once, on release
-  }
-  dial.addEventListener("mousedown", dragDown);
-  dial.addEventListener("touchstart", dragDown, { passive: false });
-  window.addEventListener("mousemove", dragMove);
-  window.addEventListener("touchmove", dragMove, { passive: false });
-  window.addEventListener("mouseup", dragUp);
-  window.addEventListener("touchend", dragUp);
-
-  function zoneAtOffset(targetMin) {
-    var now = new Date(), best = null, bestDiff = 1e9;
-    for (var i = 0; i < ZONES.length; i++) {
-      var d = Math.abs(offset(ZONES[i].tz, now) - targetMin);
-      if (d < bestDiff) { bestDiff = d; best = ZONES[i].tz; }
-    }
-    return bestDiff <= 30 ? best : null;
   }
 
   // ---- dropdowns ------------------------------------------------------------
@@ -223,9 +178,12 @@
     }
     return arr;
   }
-  function fillSelect(sel, selected) {
+  function fillSelect(sel, selected, query) {
     var now = new Date(), frag = document.createDocumentFragment();
+    var q = (query || "").trim().toLowerCase();
     sortedZones().forEach(function (z) {
+      var hay = (z.city + " " + (z.region || "")).toLowerCase();
+      if (q && hay.indexOf(q) === -1 && z.tz !== selected) return; // process-of-elimination filter
       var o = document.createElement("option");
       o.value = z.tz;
       o.textContent = z.city + (z.region ? " (" + z.region + ")" : "") + "  " + fmtOffset(offset(z.tz, now));
@@ -255,12 +213,13 @@
     b.addEventListener("click", function () {
       state.sort = b.getAttribute("data-sort");
       seg.setAttribute("data-active", state.sort);
-      fillSelect($("selLeft"), state.left);
-      fillSelect($("selRight"), state.right);
+      fillSelect($("selLeft"), state.left, $("searchLeft").value);
+      fillSelect($("selRight"), state.right, $("searchRight").value);
     });
   });
 
   // ---- wire up --------------------------------------------------------------
+  $("versionTag").textContent = "v" + VERSION;
   initTheme();
   setupCanvas();
   state.left = userZone();
@@ -269,6 +228,8 @@
   fillSelect($("selRight"), state.right);
   $("selLeft").addEventListener("change", function () { state.left = this.value; render(); });
   $("selRight").addEventListener("change", function () { state.right = this.value; render(); });
+  $("searchLeft").addEventListener("input", function () { fillSelect($("selLeft"), state.left, this.value); });
+  $("searchRight").addEventListener("input", function () { fillSelect($("selRight"), state.right, this.value); });
   window.addEventListener("resize", function () { setupCanvas(); render(); });
   render();
 })();

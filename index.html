@@ -88,7 +88,8 @@ main { position: relative; z-index: 4; padding: 22px clamp(14px,4vw,48px) 60px; 
   display: flex; gap: 12px; justify-content: center; align-items: center;
   max-width: 940px; margin: 0 auto 26px; flex-wrap: nowrap;
 }
-.select-wrap { position: relative; flex: 1 1 0; min-width: 0; max-width: 410px; }
+.picker-col { flex: 1 1 0; min-width: 0; max-width: 410px; display: flex; flex-direction: column; gap: 6px; }
+.select-wrap { position: relative; }
 .select-wrap::after {
   content: ""; position: absolute; right: 17px; top: 50%; width: 8px; height: 8px;
   border-right: 2px solid var(--text-dim); border-bottom: 2px solid var(--text-dim);
@@ -141,19 +142,38 @@ select:focus { border-color: var(--accent); }
   -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
   box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, var(--shadow);
 }
-#dial { display: block; width: min(92vw, 78vh, 720px); height: auto; border-radius: 50%;
-  touch-action: none; user-select: none; -webkit-user-select: none; cursor: grab; }
-#dial.grabbing { cursor: grabbing; }
+#dial { display: block; width: min(92vw, 78vh, 720px); height: auto; border-radius: 50%; }
+
+.ring-labels {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  margin-bottom: 10px; color: #fff; font-family: "Google Sans", system-ui, sans-serif;
+  font-weight: 500; text-shadow: 0 1px 6px rgba(0,0,0,0.45);
+}
+#labelOuter { font-size: 13px; opacity: 0.8; }
+#labelInner { font-size: 17px; }
+
+.search-input {
+  width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--border-2);
+  color: var(--text); font-family: "Google Sans"; font-size: 13px; font-weight: 500;
+  padding: 8px 20px 6px; outline: none;
+}
+.search-input::placeholder { color: var(--text-faint); }
+
+.version-tag {
+  position: fixed; bottom: 10px; right: 14px; z-index: 5; pointer-events: none;
+  font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--text-faint);
+}
 
 @media (max-width: 560px) {
   .pickers { flex-wrap: wrap; }
-  .select-wrap { flex: 1 1 100%; max-width: none; order: 1; }
+  .picker-col { flex: 1 1 100%; max-width: none; order: 1; }
   .segmented { order: 0; margin: 0 auto; }
 }
 </style>
 </head>
 <body>
 <div class="dot-canvas-wrap" aria-hidden="true"><canvas id="dot-canvas"></canvas></div>
+<div class="version-tag" id="versionTag" aria-hidden="true"></div>
 
 <header>
   <button class="theme-btn" id="themeBtn" aria-label="Toggle dark mode" title="Toggle theme">
@@ -164,7 +184,10 @@ select:focus { border-color: var(--accent); }
 
 <main>
   <div class="pickers">
-    <div class="select-wrap"><select id="selLeft" aria-label="Home zone"></select></div>
+    <div class="picker-col">
+      <input class="search-input" id="searchLeft" type="text" placeholder="Search…" aria-label="Filter home zone" autocomplete="off">
+      <div class="select-wrap"><select id="selLeft" aria-label="Home zone"></select></div>
+    </div>
     <div class="segmented" id="seg" data-active="offset">
       <div class="seg-thumb"></div>
       <button class="seg-btn" data-sort="offset" aria-label="Order by UTC offset" title="Order by UTC offset">
@@ -174,10 +197,17 @@ select:focus { border-color: var(--accent); }
         <span class="ic-continents"></span>
       </button>
     </div>
-    <div class="select-wrap"><select id="selRight" aria-label="Their zone"></select></div>
+    <div class="picker-col">
+      <input class="search-input" id="searchRight" type="text" placeholder="Search…" aria-label="Filter their zone" autocomplete="off">
+      <div class="select-wrap"><select id="selRight" aria-label="Their zone"></select></div>
+    </div>
   </div>
 
   <div class="stage-wrap">
+    <div class="ring-labels">
+      <span id="labelOuter"></span>
+      <span id="labelInner"></span>
+    </div>
     <div class="dial-card">
       <canvas id="dial" aria-label="Time zone comparison dials"></canvas>
     </div>
