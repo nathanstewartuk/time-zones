@@ -1,5 +1,5 @@
 (function () {
-  var VERSION = "0.1.0"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
+  var VERSION = "0.1.1"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
   var $ = function (id) { return document.getElementById(id); };
   var SIZE = 600, CX = 300, CY = 300;
   var GAP = 13;                       // gap dial->dial AND outer-dial->glass-rim (equal)

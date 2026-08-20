@@ -144,13 +144,17 @@ select:focus { border-color: var(--accent); }
 }
 #dial { display: block; width: min(92vw, 78vh, 720px); height: auto; border-radius: 50%; }
 
-.ring-labels {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  margin-bottom: 10px; color: #fff; font-family: "Google Sans", system-ui, sans-serif;
-  font-weight: 500; text-shadow: 0 1px 6px rgba(0,0,0,0.45);
+/* outer ring's own name: nothing sits above the outer ring, so its label goes above the whole dial */
+#labelOuter {
+  text-align: center; margin-bottom: 10px; color: #fff; font-family: "Google Sans", system-ui, sans-serif;
+  font-weight: 500; font-size: 14px; text-shadow: 0 1px 6px rgba(0,0,0,0.45);
 }
-#labelOuter { font-size: 13px; opacity: 0.8; }
-#labelInner { font-size: 17px; }
+/* inner ring's own name: sits inside the hollow centre, above the inner ring's own numbers */
+#labelInner {
+  position: absolute; top: 36%; left: 50%; transform: translate(-50%, -50%); z-index: 2;
+  text-align: center; color: #fff; font-family: "Google Sans", system-ui, sans-serif;
+  font-weight: 500; font-size: 15px; text-shadow: 0 1px 6px rgba(0,0,0,0.45); pointer-events: none;
+}
 
 .search-input {
   width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--border-2);
@@ -204,11 +208,9 @@ select:focus { border-color: var(--accent); }
   </div>
 
   <div class="stage-wrap">
-    <div class="ring-labels">
-      <span id="labelOuter"></span>
-      <span id="labelInner"></span>
-    </div>
+    <span id="labelOuter"></span>
     <div class="dial-card">
+      <span id="labelInner"></span>
       <canvas id="dial" aria-label="Time zone comparison dials"></canvas>
     </div>
   </div>
