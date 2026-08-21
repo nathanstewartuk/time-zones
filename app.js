@@ -1,5 +1,5 @@
 (function () {
-  var VERSION = "0.1.2"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
+  var VERSION = "0.1.3"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
   var $ = function (id) { return document.getElementById(id); };
   var SIZE = 600, CX = 300, CY = 300;
   var GAP = 13;                       // gap dial->dial AND outer-dial->glass-rim (equal)
@@ -188,7 +188,7 @@
     }
     sortedZones().forEach(function (z) {
       var hay = (z.city + " " + (z.region || "")).toLowerCase();
-      if (q && hay.indexOf(q) === -1 && z.tz !== selected) return; // process-of-elimination filter
+      if (q && hay.indexOf(q) === -1) return; // process-of-elimination filter, no exceptions
       var o = document.createElement("option");
       o.value = z.tz;
       o.textContent = z.city + (z.region ? " (" + z.region + ")" : "") + "  " + fmtOffset(offset(z.tz, now));
