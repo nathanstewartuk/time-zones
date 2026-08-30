@@ -180,7 +180,9 @@
     }
     dctx.save();
     runs.forEach(function (r) {
-      var startDeg = hourToAngle(r[0]), spanDeg = r.length * 15;
+      // -7.5deg: hourToAngle(h) is the NUMBER's own angle, not a bucket edge - shift back half
+      // an hour so the wedge is centred on the number, with its border falling between numbers.
+      var startDeg = hourToAngle(r[0]) - 7.5, spanDeg = r.length * 15;
       var a0 = (startDeg - 90) * Math.PI / 180, a1 = a0 + spanDeg * Math.PI / 180;
       dctx.beginPath();
       dctx.arc(CX, CY, OUTER.rMid + OUTER.w / 2, a0, a1);
@@ -282,16 +284,18 @@
   // ---- drag outer ring to rotate / click-or-drag inner ring+hollow to select hour(s) ----------
   var mode = null; // null | "rotate" | "select"
   var lastAngle = 0, totalDrag = 0;
-  var selectStartHour = 0;
+  var selectStartHour = 0, selectWasSoleHour = false;
   function pointerAngle(e) {
     var r = dial.getBoundingClientRect(), scale = SIZE / r.width;
     var dx = (e.clientX - r.left) * scale - CX, dy = (e.clientY - r.top) * scale - CY;
     return { deg: Math.atan2(dy, dx) * 180 / Math.PI, dist: Math.sqrt(dx * dx + dy * dy) };
   }
   // absolute hour (0-23) under the pointer, in the INNER ring's fixed/unrotated frame.
+  // buckets are centred on each number (matching drawHourSelection's -7.5deg wedge shift), so a
+  // tap near the number itself selects that hour, not whichever hour's edge happens to be there.
   function hourFromPointer(e) {
     var mine = pointerAngle(e).deg + 90; // convert atan2's 0=3-o'clock convention to hourToAngle's 0=top convention
-    var a = ((mine + 180) % 360 + 360) % 360;
+    var a = ((mine + 180 + 7.5) % 360 + 360) % 360;
     return Math.floor(a / 15);
   }
   // shorter of the two ways round the clock from startH to endH, inclusive both ends.
@@ -309,6 +313,9 @@
         mode = "rotate"; lastAngle = p.deg; totalDrag = 0;
       } else if (p.dist < OUTER.rMid - OUTER.w / 2) {
         mode = "select"; selectStartHour = hourFromPointer(e);
+        // tapping the one hour that's already the WHOLE selection toggles it off - remembered here,
+        // resolved at drop() once we know whether the gesture ends up leaving that single hour.
+        selectWasSoleHour = selectedHours.size === 1 && selectedHours.has(selectStartHour);
         selectedHours = new Set([selectStartHour]);
         render();
       } else {
@@ -331,7 +338,16 @@
       }
     });
     function drop() {
-      if (mode === "select") { mode = null; return; }
+      if (mode === "select") {
+        mode = null;
+        // the whole gesture (tap, or a drag that never left the start hour) stayed on the one
+        // hour that was already the entire selection - that's the deselect gesture.
+        if (selectWasSoleHour && selectedHours.size === 1 && selectedHours.has(selectStartHour)) {
+          selectedHours = new Set();
+          render();
+        }
+        return;
+      }
       if (mode !== "rotate") return;
       mode = null;
       var now = new Date();

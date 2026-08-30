@@ -7,7 +7,7 @@ import { PAGE_URL, dialBox, dialPoint, hourAngle, samplePixel, OUTER, INNER } fr
 const GAP_R = (INNER.rMid + INNER.w / 2 + OUTER.rMid - OUTER.w / 2) / 2;
 
 async function gapSample(page, hour) {
-  return samplePixel(page, GAP_R, hourAngle(hour) + 7.5); // +7.5 = mid-hour, well clear of the dashed border at the edges
+  return samplePixel(page, GAP_R, hourAngle(hour)); // the wedge is now centred ON the number, so the number's own angle is mid-wedge
 }
 
 function isOverlayColour(px) {
@@ -18,7 +18,7 @@ function isOverlayColour(px) {
 // click is one float-rounding error away from landing in the neighbouring hour instead.
 async function tapHour(page, hour) {
   const box = await dialBox(page);
-  const p = dialPoint(box, INNER.rMid, hourAngle(hour) + 7.5);
+  const p = dialPoint(box, INNER.rMid, hourAngle(hour));
   await page.mouse.move(p.x, p.y);
   await page.mouse.down();
   await page.mouse.up();
@@ -26,12 +26,12 @@ async function tapHour(page, hour) {
 
 async function dragHours(page, fromHour, toHour, steps = 4) {
   const box = await dialBox(page);
-  const start = dialPoint(box, INNER.rMid, hourAngle(fromHour) + 7.5);
+  const start = dialPoint(box, INNER.rMid, hourAngle(fromHour));
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   for (let i = 1; i <= steps; i++) {
     const h = fromHour + ((toHour - fromHour) * i) / steps;
-    const p = dialPoint(box, INNER.rMid, hourAngle(h) + 7.5);
+    const p = dialPoint(box, INNER.rMid, hourAngle(h));
     await page.mouse.move(p.x, p.y);
   }
   await page.mouse.up();
@@ -94,6 +94,36 @@ test("tapping a single hour inside an existing multi-hour selection collapses it
     expect(isOverlayColour(await gapSample(page, 18))).toBe(true);
     expect(isOverlayColour(await gapSample(page, 16))).toBe(false);
     expect(isOverlayColour(await gapSample(page, 20))).toBe(false);
+  });
+});
+
+test("tapping the sole already-selected hour again deselects it", async ({ page }) => {
+  await test.step("Given only hour 9 is selected", async () => {
+    await page.goto(PAGE_URL, { waitUntil: "networkidle" });
+    await tapHour(page, 9);
+    expect(isOverlayColour(await gapSample(page, 9))).toBe(true);
+  });
+  await test.step("When hour 9 is tapped again", async () => {
+    await tapHour(page, 9);
+  });
+  await test.step("Then hour 9 is no longer painted", async () => {
+    expect(isOverlayColour(await gapSample(page, 9))).toBe(false);
+  });
+});
+
+test("tapping a multi-hour range down to its own single hour does not then deselect on a repeat tap of a DIFFERENT hour", async ({ page }) => {
+  await test.step("Given a range was collapsed to hour 18 alone", async () => {
+    await page.goto(PAGE_URL, { waitUntil: "networkidle" });
+    await dragHours(page, 16, 20);
+    await tapHour(page, 18);
+    expect(isOverlayColour(await gapSample(page, 18))).toBe(true);
+  });
+  await test.step("When a different hour, 3, is tapped", async () => {
+    await tapHour(page, 3);
+  });
+  await test.step("Then hour 3 is selected and hour 18 is not (a normal replace, not a deselect)", async () => {
+    expect(isOverlayColour(await gapSample(page, 3))).toBe(true);
+    expect(isOverlayColour(await gapSample(page, 18))).toBe(false);
   });
 });
 
