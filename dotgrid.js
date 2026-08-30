@@ -78,6 +78,8 @@
       var R = BASE[0], G = BASE[1], B = BASE[2], m = BA;
       var fadeStart = H * 0.72;
       if (d.gy > fadeStart) m *= 1 - (d.gy - fadeStart) / (H - fadeStart);
+      var fadeEndTop = H * 0.28;
+      if (d.gy < fadeEndTop) m *= d.gy / fadeEndTop;
       if (pointer && a > 0) {
         m = m + a * a * (0.9 - BA);          // brighten near cursor
         var ang = Math.atan2(d.gy - pointer.y, d.gx - pointer.x);
