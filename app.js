@@ -1,5 +1,5 @@
 (function () {
-  var VERSION = "0.2.3"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
+  var VERSION = "0.2.4"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
   var $ = function (id) { return document.getElementById(id); };
   var SIZE = 640, CX = 320, CY = 320; // 40px wider than the ring geometry so the curved outer label has room before the canvas edge clips it
   var GAP = 13;                       // gap dial->dial AND outer-dial->glass-rim (equal)

@@ -26,6 +26,7 @@
   --accent: #7c5cff;
   --shadow: 0 30px 60px -24px rgba(20,26,45,0.35);
   --glass-blur: blur(22px) saturate(1.4);
+  --gutter: clamp(14px, 4vw, 48px); /* main's horizontal padding - #dial's width must subtract this or it can overflow main and get clipped by .stage-wrap's overflow:hidden */
 }
 html[data-theme="dark"] {
   --canvas: #05060a;
@@ -88,7 +89,7 @@ html[data-theme="dark"] .theme-btn .i-sun  { transform: rotate(0) scale(1); opac
 main {
   position: relative; z-index: 4; flex: 1 1 auto; min-height: 0;
   display: flex; flex-direction: column;
-  padding: 10px clamp(14px,4vw,48px) 14px;
+  padding: 10px var(--gutter) 14px;
 }
 
 .pickers {
@@ -121,7 +122,7 @@ select:focus { border-color: var(--accent); }
   -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
   box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, var(--shadow);
 }
-#dial { display: block; width: min(90vw, 58vh, 640px); height: auto; max-height: 100%; border-radius: 50%; }
+#dial { display: block; width: min(calc(100vw - 2 * var(--gutter) - 14px), 58vh, 640px); height: auto; max-height: 100%; border-radius: 50%; }
 
 .search-input {
   width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--border-2);
@@ -145,7 +146,7 @@ select:focus { border-color: var(--accent); }
   main { padding-top: 6px; padding-bottom: 8px; }
   .pickers { margin-bottom: 8px; }
   .picker-col { gap: 3px; }
-  #dial { width: min(88vw, 46vh, 520px); }
+  #dial { width: min(calc(100vw - 2 * var(--gutter) - 14px), 46vh, 520px); }
 }
 </style>
 </head>
