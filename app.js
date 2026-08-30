@@ -124,8 +124,33 @@
     dctx.restore();
   }
 
+  // curved dial-edge label, glyphs oriented radially outward from centre, top-centred.
+  function drawCurvedLabel(text, radius) {
+    dctx.save();
+    dctx.font = '600 13px "Google Sans", system-ui, sans-serif';
+    dctx.textAlign = "center"; dctx.textBaseline = "middle";
+    var angles = [];
+    for (var i = 0; i < text.length; i++) angles.push((dctx.measureText(text[i]).width + 2.5) / radius);
+    var totalAngle = angles.reduce(function (s, a) { return s + a; }, 0);
+    var acc = -Math.PI / 2 - totalAngle / 2;
+    dctx.translate(CX, CY);
+    for (var j = 0; j < text.length; j++) {
+      var mid = acc + angles[j] / 2;
+      dctx.save();
+      dctx.rotate(mid);
+      dctx.translate(0, -radius);
+      dctx.lineWidth = 3; dctx.strokeStyle = "rgba(0,0,0,0.45)";
+      dctx.strokeText(text[j], 0, 0);
+      dctx.fillStyle = "rgba(255,255,255,0.94)";
+      dctx.fillText(text[j], 0, 0);
+      dctx.restore();
+      acc += angles[j];
+    }
+    dctx.restore();
+  }
+
   // ---- state + render -------------------------------------------------------
-  var state = { left: null, right: null, sort: "offset" };
+  var state = { left: null, right: null };
   function offset(tz, date) { return tzOffsetMin(tz, date); }
 
   var DPR = 1;
@@ -133,7 +158,10 @@
     DPR = window.devicePixelRatio || 1;
     dial.width = SIZE * DPR; dial.height = SIZE * DPR;
     dctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    dial.style.touchAction = "none";
   }
+
+  var dragPreviewDeg = null;
 
   function render() {
     var now = new Date();
@@ -141,20 +169,21 @@
     var offL = offset(state.left, now), offR = offset(state.right, now);
     // -ve so both dials' current hour lands at the same screen angle (radially aligned).
     var rotOuter = -(offR - offL) / 60 * 15;
+    var rotOuterDisplay = rotOuter + (dragPreviewDeg || 0);
     readThemeColors();
     var altL = hourlyAlts(zL, offL, now), altR = hourlyAlts(zR, offR, now);
 
     dctx.clearRect(0, 0, SIZE, SIZE);
-    drawBand(OUTER, altR, rotOuter);
+    drawBand(OUTER, altR, rotOuterDisplay);
     drawBand(INNER, altL, 0);
     dctx.strokeStyle = "rgba(255,255,255,0.16)"; dctx.lineWidth = 1;
     [OUTER.rMid + OUTER.w / 2, OUTER.rMid - OUTER.w / 2, INNER.rMid + INNER.w / 2, INNER.rMid - INNER.w / 2].forEach(function (r) {
       dctx.beginPath(); dctx.arc(CX, CY, r, 0, Math.PI * 2); dctx.stroke();
     });
-    drawNumbers(OUTER, altR, rotOuter);
+    drawNumbers(OUTER, altR, rotOuterDisplay);
     drawNumbers(INNER, altL, 0);
-    $("labelInner").textContent = zL.city;
-    $("labelOuter").textContent = zR.city;
+    drawCurvedLabel(zL.city.toUpperCase() + " · DIAL", INNER.rMid - INNER.w / 2 - 14);
+    drawCurvedLabel(zR.city.toUpperCase() + " · DIAL", OUTER.rMid + OUTER.w / 2 + 16);
   }
 
   function fmtOffset(min) {
@@ -165,17 +194,10 @@
   // ---- dropdowns ------------------------------------------------------------
   function sortedZones() {
     var now = new Date(), arr = ZONES.slice();
-    if (state.sort === "offset") {
-      arr.sort(function (a, b) {
-        var d = offset(a.tz, now) - offset(b.tz, now);
-        return d !== 0 ? d : a.city.localeCompare(b.city);
-      });
-    } else {
-      arr.sort(function (a, b) {
-        var r = a.region.localeCompare(b.region);
-        return r !== 0 ? r : a.city.localeCompare(b.city);
-      });
-    }
+    arr.sort(function (a, b) {
+      var d = offset(a.tz, now) - offset(b.tz, now);
+      return d !== 0 ? d : a.city.localeCompare(b.city);
+    });
     return arr;
   }
   function fillSelect(sel, selected, query) {
@@ -198,43 +220,70 @@
     sel.innerHTML = ""; sel.appendChild(frag);
   }
 
-  // ---- defaults -------------------------------------------------------------
-  function userZone() {
-    try { var tz = Intl.DateTimeFormat().resolvedOptions().timeZone; if (byTz[tz]) return tz; } catch (e) {}
-    return "Europe/London";
-  }
-  function nextZoneAhead(baseTz) {
-    var now = new Date(), base = offset(baseTz, now), best = null, bestDiff = 1e9;
-    ZONES.forEach(function (z) {
-      var diff = offset(z.tz, now) - base;
-      if (diff > 30 && diff < bestDiff) { bestDiff = diff; best = z.tz; }
-    });
-    return best || "Australia/Sydney";
+  // ---- URL query-param sync ---------------------------------------------------
+  function syncUrl() {
+    history.replaceState(null, "", "?tz1=" + encodeURIComponent(state.left) + "&tz2=" + encodeURIComponent(state.right));
   }
 
-  // ---- segmented sort toggle ------------------------------------------------
-  var seg = $("seg");
-  seg.querySelectorAll(".seg-btn").forEach(function (b) {
-    b.addEventListener("click", function () {
-      state.sort = b.getAttribute("data-sort");
-      seg.setAttribute("data-active", state.sort);
-      fillSelect($("selLeft"), state.left, $("searchLeft").value);
-      fillSelect($("selRight"), state.right, $("searchRight").value);
+  // ---- drag outer ring to rotate ---------------------------------------------
+  var dragging = false, dragStartAngle = 0;
+  function pointerAngle(e) {
+    var r = dial.getBoundingClientRect(), scale = SIZE / r.width;
+    var dx = (e.clientX - r.left) * scale - CX, dy = (e.clientY - r.top) * scale - CY;
+    return { deg: Math.atan2(dy, dx) * 180 / Math.PI, dist: Math.sqrt(dx * dx + dy * dy) };
+  }
+  function wireDragToRotate() {
+    dial.addEventListener("pointerdown", function (e) {
+      var p = pointerAngle(e);
+      if (p.dist < OUTER.rMid - OUTER.w / 2 || p.dist > OUTER.rMid + OUTER.w / 2) return;
+      dragging = true; dragStartAngle = p.deg;
+      try { dial.setPointerCapture(e.pointerId); } catch (err) {}
     });
-  });
+    dial.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      dragPreviewDeg = pointerAngle(e).deg - dragStartAngle;
+      render();
+    });
+    function drop() {
+      if (!dragging) return;
+      dragging = false;
+      var now = new Date();
+      var rotOuter = -(offset(state.right, now) - offset(state.left, now)) / 60 * 15;
+      var snappedDelta = Math.round((dragPreviewDeg || 0) / 15) * 15;
+      var targetOffset = offset(state.left, now) - (rotOuter + snappedDelta) / 15 * 60;
+      var best = null, bestDiff = Infinity;
+      ZONES.forEach(function (z) {
+        var diff = Math.abs(offset(z.tz, now) - targetOffset);
+        if (diff < bestDiff || (diff === bestDiff && z.city.localeCompare(best.city) < 0)) { bestDiff = diff; best = z; }
+      });
+      dragPreviewDeg = null;
+      state.right = best.tz;
+      $("selRight").value = state.right;
+      syncUrl();
+      render();
+    }
+    dial.addEventListener("pointerup", drop);
+    dial.addEventListener("pointercancel", function () { dragging = false; dragPreviewDeg = null; render(); });
+  }
 
   // ---- wire up --------------------------------------------------------------
   $("versionTag").textContent = "v" + VERSION;
   initTheme();
   setupCanvas();
-  state.left = userZone();
-  state.right = nextZoneAhead(state.left);
+  var qp = new URLSearchParams(location.search);
+  var qTz1 = qp.get("tz1"), qTz2 = qp.get("tz2");
+  if (qTz1 && qTz2 && byTz[qTz1] && byTz[qTz2]) {
+    state.left = qTz1; state.right = qTz2;
+  } else {
+    state.left = "Europe/London"; state.right = "Australia/Sydney";
+  }
   fillSelect($("selLeft"), state.left);
   fillSelect($("selRight"), state.right);
-  $("selLeft").addEventListener("change", function () { state.left = this.value; render(); });
-  $("selRight").addEventListener("change", function () { state.right = this.value; render(); });
+  $("selLeft").addEventListener("change", function () { state.left = this.value; syncUrl(); render(); });
+  $("selRight").addEventListener("change", function () { state.right = this.value; syncUrl(); render(); });
   $("searchLeft").addEventListener("input", function () { fillSelect($("selLeft"), state.left, this.value); });
   $("searchRight").addEventListener("input", function () { fillSelect($("selRight"), state.right, this.value); });
   window.addEventListener("resize", function () { setupCanvas(); render(); });
+  wireDragToRotate();
   render();
 })();
