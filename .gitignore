@@ -1,5 +1,5 @@
 node_modules/
-package.json
-package-lock.json
 uitest.mjs
 .DS_Store
+test-results/
+playwright-report/
