@@ -1,5 +1,5 @@
 (function () {
-  var VERSION = "0.2.1"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
+  var VERSION = "0.2.2"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
   var $ = function (id) { return document.getElementById(id); };
   var SIZE = 640, CX = 320, CY = 320; // 40px wider than the ring geometry so the curved outer label has room before the canvas edge clips it
   var GAP = 13;                       // gap dial->dial AND outer-dial->glass-rim (equal)
@@ -128,7 +128,7 @@
   // curved dial-edge label, glyphs oriented radially outward from centre, top-centred.
   function drawCurvedLabel(text, radius) {
     dctx.save();
-    dctx.font = '600 16px "Google Sans", system-ui, sans-serif';
+    dctx.font = '600 18px "Google Sans", system-ui, sans-serif';
     dctx.textAlign = "center"; dctx.textBaseline = "middle";
     dctx.fillStyle = textColor.label;
     var angles = [];
@@ -227,7 +227,7 @@
   }
 
   // ---- drag outer ring to rotate ---------------------------------------------
-  var dragging = false, dragStartAngle = 0;
+  var dragging = false, lastAngle = 0, totalDrag = 0;
   function pointerAngle(e) {
     var r = dial.getBoundingClientRect(), scale = SIZE / r.width;
     var dx = (e.clientX - r.left) * scale - CX, dy = (e.clientY - r.top) * scale - CY;
@@ -237,12 +237,17 @@
     dial.addEventListener("pointerdown", function (e) {
       var p = pointerAngle(e);
       if (p.dist < OUTER.rMid - OUTER.w / 2 || p.dist > OUTER.rMid + OUTER.w / 2) return;
-      dragging = true; dragStartAngle = p.deg;
+      dragging = true; lastAngle = p.deg; totalDrag = 0;
       try { dial.setPointerCapture(e.pointerId); } catch (err) {}
     });
     dial.addEventListener("pointermove", function (e) {
       if (!dragging) return;
-      dragPreviewDeg = pointerAngle(e).deg - dragStartAngle;
+      var cur = pointerAngle(e).deg;
+      var step = cur - lastAngle;
+      if (step > 180) step -= 360; else if (step < -180) step += 360; // atan2 wraps at +-180; accumulate the short way round, not the raw jump
+      totalDrag += step;
+      lastAngle = cur;
+      dragPreviewDeg = totalDrag;
       render();
     });
     function drop() {
@@ -252,6 +257,12 @@
       var rotOuter = -(offset(state.right, now) - offset(state.left, now)) / 60 * 15;
       var snappedDelta = Math.round((dragPreviewDeg || 0) / 15) * 15;
       var targetOffset = offset(state.left, now) - (rotOuter + snappedDelta) / 15 * 60;
+      // clamp to the real min/max offset in ZONES: an unclamped target past either end
+      // always "nearest-matches" back to that same end zone (dead stop, like a real dial),
+      // but for very large drags it can overshoot into nonsense and match something unrelated.
+      var minOff = Infinity, maxOff = -Infinity;
+      ZONES.forEach(function (z) { var o = offset(z.tz, now); if (o < minOff) minOff = o; if (o > maxOff) maxOff = o; });
+      targetOffset = Math.max(minOff, Math.min(maxOff, targetOffset));
       var best = null, bestDiff = Infinity;
       ZONES.forEach(function (z) {
         var diff = Math.abs(offset(z.tz, now) - targetOffset);
