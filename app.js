@@ -1,7 +1,7 @@
 (function () {
-  var VERSION = "0.1.3"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
+  var VERSION = "0.2.0"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
   var $ = function (id) { return document.getElementById(id); };
-  var SIZE = 600, CX = 300, CY = 300;
+  var SIZE = 640, CX = 320, CY = 320; // 40px wider than the ring geometry so the curved outer label has room before the canvas edge clips it
   var GAP = 13;                       // gap dial->dial AND outer-dial->glass-rim (equal)
   // outer edge 300-GAP=287; each band 82 wide; gap 13 between; hole radius 110.
   var OUTER = { rMid: 246, w: 82 };   // spans 205..287
@@ -132,7 +132,7 @@
     var angles = [];
     for (var i = 0; i < text.length; i++) angles.push((dctx.measureText(text[i]).width + 2.5) / radius);
     var totalAngle = angles.reduce(function (s, a) { return s + a; }, 0);
-    var acc = -Math.PI / 2 - totalAngle / 2;
+    var acc = -totalAngle / 2; // rotate(0) already points up in this translate/rotate scheme (unlike the cos/sin hour-angle convention above)
     dctx.translate(CX, CY);
     for (var j = 0; j < text.length; j++) {
       var mid = acc + angles[j] / 2;
@@ -183,7 +183,7 @@
     drawNumbers(OUTER, altR, rotOuterDisplay);
     drawNumbers(INNER, altL, 0);
     drawCurvedLabel(zL.city.toUpperCase() + " · DIAL", INNER.rMid - INNER.w / 2 - 14);
-    drawCurvedLabel(zR.city.toUpperCase() + " · DIAL", OUTER.rMid + OUTER.w / 2 + 16);
+    drawCurvedLabel(zR.city.toUpperCase() + " · DIAL", OUTER.rMid + OUTER.w / 2 + 10);
   }
 
   function fmtOffset(min) {
