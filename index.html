@@ -70,17 +70,13 @@ body {
 /* dot grid: canvas physics sim (stitch port). cursor pushes dots, they chase back. */
 .dot-canvas-wrap { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
 .dot-canvas-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-header {
-  position: relative; z-index: 4; flex: 0 0 auto;
-  display: flex; justify-content: flex-end;
-  padding: 10px clamp(16px,5vw,48px) 0;
-}
 .theme-btn {
   width: 48px; height: 48px; border-radius: 50%;
   background: var(--surface-strong); border: 1px solid var(--border);
   -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
   box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 8px 22px -10px rgba(20,26,45,.4);
-  cursor: pointer; position: relative; overflow: hidden; color: var(--text);
+  cursor: pointer; position: fixed; bottom: calc(60px + env(safe-area-inset-bottom)); right: 14px; z-index: 5;
+  overflow: hidden; color: var(--text);
   display: grid; place-items: center;
 }
 .theme-btn svg { position: absolute; width: 22px; height: 22px;
@@ -130,8 +126,8 @@ select:focus { border-color: var(--accent); }
 
 .search-input {
   width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--border-2);
-  color: var(--text); font-family: "Google Sans"; font-size: 13px; font-weight: 500;
-  padding: 8px 20px 6px; outline: none;
+  color: var(--text); font-family: "Google Sans"; font-size: 16px; font-weight: 500;
+  padding: 6px 20px 5px; outline: none;
 }
 .search-input::placeholder { color: var(--text-faint); }
 
@@ -146,7 +142,6 @@ select:focus { border-color: var(--accent); }
 }
 
 @media (max-height: 750px) {
-  header { padding-top: 6px; }
   main { padding-top: 6px; padding-bottom: 8px; }
   .pickers { margin-bottom: 8px; }
   .picker-col { gap: 3px; }
@@ -158,12 +153,10 @@ select:focus { border-color: var(--accent); }
 <div class="dot-canvas-wrap" aria-hidden="true"><canvas id="dot-canvas"></canvas></div>
 <div class="version-tag" id="versionTag" aria-hidden="true"></div>
 
-<header>
-  <button class="theme-btn" id="themeBtn" aria-label="Toggle dark mode" title="Toggle theme">
-    <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-    <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
-  </button>
-</header>
+<button class="theme-btn" id="themeBtn" aria-label="Toggle dark mode" title="Toggle theme">
+  <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 1v3M12 20v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M1 12h3M20 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>
+</button>
 
 <main>
   <div class="pickers">
