@@ -11,7 +11,7 @@ export function urlWith(params) {
 
 // dial canvas geometry, mirrored from app.js's own constants (SIZE/CX/CY/OUTER/INNER) -
 // keep these in sync with app.js by hand, there is no shared module (no build step on the site).
-export const SIZE = 640, CX = 320, CY = 320;
+export const SIZE = 680, CX = 340, CY = 340;
 export const OUTER = { rMid: 246, w: 82 }; // spans 205..287
 export const INNER = { rMid: 151, w: 82 }; // spans 110..192
 

@@ -36,56 +36,58 @@ function findBestZoneForOffset(page, targetOffset) {
   }, targetOffset);
 }
 
-test("a 15deg clockwise drag moves tz2 one hour offset earlier", async ({ page }) => {
+// tz1/#selLeft = the outer, draggable ring. tz2/#selRight = the inner, fixed/home ring.
+
+test("a 15deg clockwise drag moves tz1 one hour offset earlier", async ({ page }) => {
   let offBefore;
-  await test.step("Given London/Tokyo are loaded", async () => {
-    await page.goto(urlWith({ tz1: "Europe/London", tz2: "Asia/Tokyo" }), { waitUntil: "networkidle" });
-    offBefore = await page.evaluate(() => window.tzOffsetMin(document.getElementById("selRight").value, new Date()));
+  await test.step("Given Tokyo/London are loaded (tz1=Tokyo outer, tz2=London home)", async () => {
+    await page.goto(urlWith({ tz1: "Asia/Tokyo", tz2: "Europe/London" }), { waitUntil: "networkidle" });
+    offBefore = await page.evaluate(() => window.tzOffsetMin(document.getElementById("selLeft").value, new Date()));
   });
   await test.step("When the outer ring is dragged 15deg clockwise", async () => {
     await dragOuterRing(page, 90, 15);
   });
-  await test.step("Then #selRight lands on the zone nearest offBefore-60min", async () => {
+  await test.step("Then #selLeft lands on the zone nearest offBefore-60min", async () => {
     const expectedTz = await findBestZoneForOffset(page, offBefore - 60);
-    await expect(page.locator("#selRight")).toHaveValue(expectedTz);
+    await expect(page.locator("#selLeft")).toHaveValue(expectedTz);
   });
 });
 
 test("dragging outward past the dataset's max offset (Kiritimati) wraps around", async ({ page }) => {
-  await test.step("Given tz2 is Kiritimati (the dataset's highest UTC offset)", async () => {
-    await page.goto(urlWith({ tz1: "Europe/London", tz2: "Pacific/Kiritimati" }), { waitUntil: "networkidle" });
+  await test.step("Given tz1 is Kiritimati (the dataset's highest UTC offset, on the outer/draggable ring)", async () => {
+    await page.goto(urlWith({ tz1: "Pacific/Kiritimati", tz2: "Europe/London" }), { waitUntil: "networkidle" });
   });
   await test.step("When the outer ring is dragged 15deg counter-clockwise (further outward)", async () => {
     await dragOuterRing(page, 90, -15);
   });
-  await test.step("Then #selRight is no longer stuck on Kiritimati", async () => {
-    await expect(page.locator("#selRight")).not.toHaveValue("Pacific/Kiritimati");
+  await test.step("Then #selLeft is no longer stuck on Kiritimati", async () => {
+    await expect(page.locator("#selLeft")).not.toHaveValue("Pacific/Kiritimati");
   });
 });
 
 test("dragging outward past the dataset's min offset (Midway) wraps around", async ({ page }) => {
-  await test.step("Given tz2 is Midway (the dataset's lowest UTC offset)", async () => {
-    await page.goto(urlWith({ tz1: "Europe/London", tz2: "Pacific/Midway" }), { waitUntil: "networkidle" });
+  await test.step("Given tz1 is Midway (the dataset's lowest UTC offset, on the outer/draggable ring)", async () => {
+    await page.goto(urlWith({ tz1: "Pacific/Midway", tz2: "Europe/London" }), { waitUntil: "networkidle" });
   });
   await test.step("When the outer ring is dragged 15deg clockwise (further outward)", async () => {
     await dragOuterRing(page, 90, 15);
   });
-  await test.step("Then #selRight is no longer stuck on Midway", async () => {
-    await expect(page.locator("#selRight")).not.toHaveValue("Pacific/Midway");
+  await test.step("Then #selLeft is no longer stuck on Midway", async () => {
+    await expect(page.locator("#selLeft")).not.toHaveValue("Pacific/Midway");
   });
 });
 
 test("a drag on the outer ring updates the URL query string", async ({ page }) => {
-  await test.step("Given London/Tokyo are loaded", async () => {
-    await page.goto(urlWith({ tz1: "Europe/London", tz2: "Asia/Tokyo" }), { waitUntil: "networkidle" });
+  await test.step("Given Tokyo/London are loaded", async () => {
+    await page.goto(urlWith({ tz1: "Asia/Tokyo", tz2: "Europe/London" }), { waitUntil: "networkidle" });
   });
   await test.step("When the outer ring is dragged 15deg clockwise", async () => {
     await dragOuterRing(page, 90, 15);
   });
-  await test.step("Then location.search reflects the new tz2 value", async () => {
-    const newTz2 = await page.locator("#selRight").inputValue();
+  await test.step("Then location.search reflects the new tz1 value", async () => {
+    const newTz1 = await page.locator("#selLeft").inputValue();
     const search = await page.evaluate(() => location.search);
-    expect(search).toContain("tz2=" + encodeURIComponent(newTz2));
-    expect(search).toContain("tz1=Europe%2FLondon");
+    expect(search).toContain("tz1=" + encodeURIComponent(newTz1));
+    expect(search).toContain("tz2=Europe%2FLondon");
   });
 });

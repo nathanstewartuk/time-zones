@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
+<!-- default is light; app.js overwrites this to match whichever theme is actually active (the
+     in-page toggle can diverge from OS prefers-color-scheme) so iOS Safari's own status-bar /
+     home-indicator safe-area strips paint the same colour as the page instead of flat black. -->
+<meta name="theme-color" id="themeColorMeta" content="#eef0f4">
 <title>time-zones.net</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

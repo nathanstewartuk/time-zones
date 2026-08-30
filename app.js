@@ -1,7 +1,7 @@
 (function () {
   var VERSION = "0.2.4"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
   var $ = function (id) { return document.getElementById(id); };
-  var SIZE = 640, CX = 320, CY = 320; // 40px wider than the ring geometry so the curved outer label has room before the canvas edge clips it
+  var SIZE = 680, CX = 340, CY = 340; // wider than the ring geometry so the curved labels have real room to sit centred in their gap, not hugging the ring
   var GAP = 13;                       // gap dial->dial AND outer-dial->glass-rim (equal)
   // outer edge 300-GAP=287; each band 82 wide; gap 13 between; hole radius 110.
   var OUTER = { rMid: 246, w: 82 };   // spans 205..287
@@ -10,17 +10,26 @@
   ZONES.forEach(function (z) { byTz[z.tz] = z; });
 
   // ---- theme (persisted so extensions / force-dark can't override choice) ---
+  // matches index.html's --canvas token for each theme, so iOS Safari's own status-bar /
+  // home-indicator safe-area strips paint the same colour as the page, not flat black.
+  function syncThemeColor() {
+    var dark = document.documentElement.getAttribute("data-theme") === "dark";
+    var meta = $("themeColorMeta");
+    if (meta) meta.setAttribute("content", dark ? "#05060a" : "#eef0f4");
+  }
   function initTheme() {
     var saved = null;
     try { saved = localStorage.getItem("tz-theme"); } catch (e) {}
     var q = (location.search.match(/[?&]theme=(dark|light)/) || [])[1];
     var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     document.documentElement.setAttribute("data-theme", saved || q || (prefersDark ? "dark" : "light"));
+    syncThemeColor();
   }
   $("themeBtn").addEventListener("click", function () {
     var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
     try { localStorage.setItem("tz-theme", next); } catch (e) {}
+    syncThemeColor();
     render();
   });
 
@@ -162,29 +171,33 @@
 
   var dragPreviewDeg = null;
 
+  // state.left = OUTER ring (draggable, shown in the first/top picker).
+  // state.right = INNER ring (fixed, hour 12 always at top, shown in the second/bottom picker).
   function render() {
     var now = new Date();
-    var zL = byTz[state.left], zR = byTz[state.right];
-    var offL = offset(state.left, now), offR = offset(state.right, now);
+    var zOuter = byTz[state.left], zInner = byTz[state.right];
+    var offOuter = offset(state.left, now), offInner = offset(state.right, now);
     // -ve so both dials' current hour lands at the same screen angle (radially aligned).
-    var rotOuter = -(offR - offL) / 60 * 15;
+    var rotOuter = -(offOuter - offInner) / 60 * 15;
     var rotOuterDisplay = rotOuter + (dragPreviewDeg || 0);
     readThemeColors();
-    var altL = hourlyAlts(zL, offL, now), altR = hourlyAlts(zR, offR, now);
+    var altOuter = hourlyAlts(zOuter, offOuter, now), altInner = hourlyAlts(zInner, offInner, now);
 
     dctx.clearRect(0, 0, SIZE, SIZE);
-    drawBand(OUTER, altR, rotOuterDisplay);
-    drawBand(INNER, altL, 0);
+    drawBand(OUTER, altOuter, rotOuterDisplay);
+    drawBand(INNER, altInner, 0);
     dctx.strokeStyle = "rgba(255,255,255,0.16)"; dctx.lineWidth = 1;
     [OUTER.rMid + OUTER.w / 2, OUTER.rMid - OUTER.w / 2, INNER.rMid + INNER.w / 2, INNER.rMid - INNER.w / 2].forEach(function (r) {
       dctx.beginPath(); dctx.arc(CX, CY, r, 0, Math.PI * 2); dctx.stroke();
     });
-    drawNumbers(OUTER, altR, rotOuterDisplay);
-    drawNumbers(INNER, altL, 0);
-    // centred in the gap between the ring's colour edge and the dial's own border (canvas edge outside, same-width mirror inside)
+    drawNumbers(OUTER, altOuter, rotOuterDisplay);
+    drawNumbers(INNER, altInner, 0);
+    // biased further into the gap (away from the ring, toward the dial's own border/hollow centre) -
+    // a flat 50/50 split still read as hugging the ring, since the visible glass-card border sits
+    // outside this canvas's own edge (dial-card padding+border), so true-centre reads ring-hugging.
     var labelGap = CX - (OUTER.rMid + OUTER.w / 2);
-    drawCurvedLabel(zL.city.toUpperCase(), INNER.rMid - INNER.w / 2 - labelGap / 2);
-    drawCurvedLabel(zR.city.toUpperCase(), OUTER.rMid + OUTER.w / 2 + labelGap / 2);
+    drawCurvedLabel(zOuter.city.toUpperCase(), OUTER.rMid + OUTER.w / 2 + labelGap * 0.6);
+    drawCurvedLabel(zInner.city.toUpperCase(), INNER.rMid - INNER.w / 2 - labelGap * 0.6);
   }
 
   function fmtOffset(min) {
@@ -254,9 +267,9 @@
       if (!dragging) return;
       dragging = false;
       var now = new Date();
-      var rotOuter = -(offset(state.right, now) - offset(state.left, now)) / 60 * 15;
+      var rotOuter = -(offset(state.left, now) - offset(state.right, now)) / 60 * 15;
       var snappedDelta = Math.round((dragPreviewDeg || 0) / 15) * 15;
-      var targetOffset = offset(state.left, now) - (rotOuter + snappedDelta) / 15 * 60;
+      var targetOffset = offset(state.right, now) - (rotOuter + snappedDelta) / 15 * 60;
       var best = null, bestDiff = Infinity;
       ZONES.forEach(function (z) {
         // the dial wraps every 24h (same as the 00-23 hour ring itself), so measure the
@@ -268,8 +281,8 @@
         if (diff < bestDiff || (diff === bestDiff && z.city.localeCompare(best.city) < 0)) { bestDiff = diff; best = z; }
       });
       dragPreviewDeg = null;
-      state.right = best.tz;
-      $("selRight").value = state.right;
+      state.left = best.tz;
+      $("selLeft").value = state.left;
       syncUrl();
       render();
     }
@@ -286,7 +299,7 @@
   if (qTz1 && qTz2 && byTz[qTz1] && byTz[qTz2]) {
     state.left = qTz1; state.right = qTz2;
   } else {
-    state.left = "Europe/London"; state.right = "Australia/Sydney";
+    state.left = "Australia/Sydney"; state.right = "Europe/London";
   }
   fillSelect($("selLeft"), state.left);
   fillSelect($("selRight"), state.right);

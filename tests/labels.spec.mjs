@@ -2,8 +2,8 @@ import { test, expect } from "@playwright/test";
 import { urlWith, samplePixel, OUTER, INNER, CX } from "./helpers.mjs";
 
 const GAP = CX - (OUTER.rMid + OUTER.w / 2);
-const OUTER_LABEL_R = OUTER.rMid + OUTER.w / 2 + GAP / 2;
-const INNER_LABEL_R = INNER.rMid - INNER.w / 2 - GAP / 2;
+const OUTER_LABEL_R = OUTER.rMid + OUTER.w / 2 + GAP * 0.6;
+const INNER_LABEL_R = INNER.rMid - INNER.w / 2 - GAP * 0.6;
 
 // sample a small angular fan around the label's centre (labels are always
 // drawn at angle 0 = top, regardless of ring rotation) and return the
