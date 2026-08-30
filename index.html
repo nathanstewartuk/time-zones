@@ -92,9 +92,14 @@ main {
   padding: 10px var(--gutter) 14px;
 }
 
+/* borrows a small share of .stage-wrap's flexible space to push .pickers down until it's
+   roughly centred between the page top and the dial - stage-wrap still centres the dial within
+   whatever's left, so this only needs to roughly match stage-wrap's own top half-gap. */
+.top-spacer { flex: 0.55 1 0; }
+
 .pickers {
   display: flex; gap: 12px; justify-content: center; align-items: center;
-  max-width: 940px; margin: 0 auto 14px; flex-wrap: nowrap; flex: 0 0 auto;
+  max-width: 940px; margin: 0 auto; flex-wrap: nowrap; flex: 0 0 auto;
 }
 .picker-col { flex: 1 1 0; min-width: 0; max-width: 410px; display: flex; flex-direction: column; gap: 6px; }
 .select-wrap { position: relative; }
@@ -159,6 +164,7 @@ select:focus { border-color: var(--accent); }
 </button>
 
 <main>
+  <div class="top-spacer" aria-hidden="true"></div>
   <div class="pickers">
     <div class="picker-col">
       <input class="search-input" id="searchLeft" type="text" placeholder="Search…" aria-label="Filter home zone" autocomplete="off">
