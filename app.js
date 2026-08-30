@@ -1,5 +1,5 @@
 (function () {
-  var VERSION = "0.2.4"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
+  var VERSION = "0.3.0"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
   var $ = function (id) { return document.getElementById(id); };
   var SIZE = 680, CX = 340, CY = 340; // wider than the ring geometry so the curved labels have real room to sit centred in their gap, not hugging the ring
   var GAP = 13;                       // gap dial->dial AND outer-dial->glass-rim (equal)
@@ -157,6 +157,45 @@
     dctx.restore();
   }
 
+  // ---- hour-select overlay ---------------------------------------------------
+  // selected hours are in the INNER ring's fixed, unrotated frame (hour h always spans
+  // hourToAngle(h)..hourToAngle(h+1) on screen, same angle both rings agree "now" is aligned
+  // through) - so a selection is really "this moment/range", shown correctly on both rings
+  // regardless of their UTC-offset rotation, with zero extra math needed per ring.
+  var selectedHours = new Set();
+  function drawHourSelection() {
+    if (!selectedHours.size) return;
+    var sorted = Array.from(selectedHours).sort(function (a, b) { return a - b; });
+    // group into runs of consecutive hours (mod 24) so a contiguous multi-hour drag renders as
+    // one clean wedge with a dashed border around its OUTSIDE, not one per hour.
+    var runs = [], run = [sorted[0]];
+    for (var i = 1; i < sorted.length; i++) {
+      if (sorted[i] === run[run.length - 1] + 1) run.push(sorted[i]);
+      else { runs.push(run); run = [sorted[i]]; }
+    }
+    runs.push(run);
+    // merge the last run into the first if they wrap across the 23->0 boundary.
+    if (runs.length > 1 && runs[0][0] === 0 && runs[runs.length - 1][runs[runs.length - 1].length - 1] === 23) {
+      runs[0] = runs.pop().concat(runs[0]);
+    }
+    dctx.save();
+    runs.forEach(function (r) {
+      var startDeg = hourToAngle(r[0]), spanDeg = r.length * 15;
+      var a0 = (startDeg - 90) * Math.PI / 180, a1 = a0 + spanDeg * Math.PI / 180;
+      dctx.beginPath();
+      dctx.arc(CX, CY, OUTER.rMid + OUTER.w / 2, a0, a1);
+      dctx.arc(CX, CY, INNER.rMid - INNER.w / 2, a1, a0, true);
+      dctx.closePath();
+      dctx.fillStyle = "rgba(94,187,252,0.22)"; // #5EBBFC wash, same in both themes
+      dctx.fill();
+      dctx.setLineDash([6, 4]);
+      dctx.lineWidth = 2.5;
+      dctx.strokeStyle = "#5EBBFC";
+      dctx.stroke();
+    });
+    dctx.restore();
+  }
+
   // ---- state + render -------------------------------------------------------
   var state = { left: null, right: null };
   function offset(tz, date) { return tzOffsetMin(tz, date); }
@@ -198,6 +237,7 @@
     var labelGap = CX - (OUTER.rMid + OUTER.w / 2);
     drawCurvedLabel(zOuter.city.toUpperCase(), OUTER.rMid + OUTER.w / 2 + labelGap * 0.6);
     drawCurvedLabel(zInner.city.toUpperCase(), INNER.rMid - INNER.w / 2 - labelGap * 0.6);
+    drawHourSelection();
   }
 
   function fmtOffset(min) {
@@ -239,33 +279,61 @@
     history.replaceState(null, "", "?tz1=" + encodeURIComponent(state.left) + "&tz2=" + encodeURIComponent(state.right));
   }
 
-  // ---- drag outer ring to rotate ---------------------------------------------
-  var dragging = false, lastAngle = 0, totalDrag = 0;
+  // ---- drag outer ring to rotate / click-or-drag inner ring+hollow to select hour(s) ----------
+  var mode = null; // null | "rotate" | "select"
+  var lastAngle = 0, totalDrag = 0;
+  var selectStartHour = 0;
   function pointerAngle(e) {
     var r = dial.getBoundingClientRect(), scale = SIZE / r.width;
     var dx = (e.clientX - r.left) * scale - CX, dy = (e.clientY - r.top) * scale - CY;
     return { deg: Math.atan2(dy, dx) * 180 / Math.PI, dist: Math.sqrt(dx * dx + dy * dy) };
   }
+  // absolute hour (0-23) under the pointer, in the INNER ring's fixed/unrotated frame.
+  function hourFromPointer(e) {
+    var mine = pointerAngle(e).deg + 90; // convert atan2's 0=3-o'clock convention to hourToAngle's 0=top convention
+    var a = ((mine + 180) % 360 + 360) % 360;
+    return Math.floor(a / 15);
+  }
+  // shorter of the two ways round the clock from startH to endH, inclusive both ends.
+  function hourRange(startH, endH) {
+    var fwd = [], h = startH;
+    while (true) { fwd.push(h); if (h === endH) break; h = (h + 1) % 24; }
+    var bwd = [], h2 = startH;
+    while (true) { bwd.push(h2); if (h2 === endH) break; h2 = (h2 + 23) % 24; }
+    return fwd.length <= bwd.length ? fwd : bwd;
+  }
   function wireDragToRotate() {
     dial.addEventListener("pointerdown", function (e) {
       var p = pointerAngle(e);
-      if (p.dist < OUTER.rMid - OUTER.w / 2 || p.dist > OUTER.rMid + OUTER.w / 2) return;
-      dragging = true; lastAngle = p.deg; totalDrag = 0;
+      if (p.dist >= OUTER.rMid - OUTER.w / 2 && p.dist <= OUTER.rMid + OUTER.w / 2) {
+        mode = "rotate"; lastAngle = p.deg; totalDrag = 0;
+      } else if (p.dist < OUTER.rMid - OUTER.w / 2) {
+        mode = "select"; selectStartHour = hourFromPointer(e);
+        selectedHours = new Set([selectStartHour]);
+        render();
+      } else {
+        return; // outside the whole dial (in the glass-card rim margin) - not a gesture
+      }
       try { dial.setPointerCapture(e.pointerId); } catch (err) {}
     });
     dial.addEventListener("pointermove", function (e) {
-      if (!dragging) return;
-      var cur = pointerAngle(e).deg;
-      var step = cur - lastAngle;
-      if (step > 180) step -= 360; else if (step < -180) step += 360; // atan2 wraps at +-180; accumulate the short way round, not the raw jump
-      totalDrag += step;
-      lastAngle = cur;
-      dragPreviewDeg = totalDrag;
-      render();
+      if (mode === "rotate") {
+        var cur = pointerAngle(e).deg;
+        var step = cur - lastAngle;
+        if (step > 180) step -= 360; else if (step < -180) step += 360; // atan2 wraps at +-180; accumulate the short way round, not the raw jump
+        totalDrag += step;
+        lastAngle = cur;
+        dragPreviewDeg = totalDrag;
+        render();
+      } else if (mode === "select") {
+        selectedHours = new Set(hourRange(selectStartHour, hourFromPointer(e)));
+        render();
+      }
     });
     function drop() {
-      if (!dragging) return;
-      dragging = false;
+      if (mode === "select") { mode = null; return; }
+      if (mode !== "rotate") return;
+      mode = null;
       var now = new Date();
       var rotOuter = -(offset(state.left, now) - offset(state.right, now)) / 60 * 15;
       var snappedDelta = Math.round((dragPreviewDeg || 0) / 15) * 15;
@@ -287,7 +355,7 @@
       render();
     }
     dial.addEventListener("pointerup", drop);
-    dial.addEventListener("pointercancel", function () { dragging = false; dragPreviewDeg = null; render(); });
+    dial.addEventListener("pointercancel", function () { mode = null; dragPreviewDeg = null; render(); });
   }
 
   // ---- wire up --------------------------------------------------------------
