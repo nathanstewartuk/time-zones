@@ -1,5 +1,5 @@
 (function () {
-  var VERSION = "0.3.0"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
+  var VERSION = "0.3.1"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
   var $ = function (id) { return document.getElementById(id); };
   var SIZE = 680, CX = 340, CY = 340; // wider than the ring geometry so the curved labels have real room to sit centred in their gap, not hugging the ring
   var GAP = 13;                       // gap dial->dial AND outer-dial->glass-rim (equal)
@@ -157,6 +157,26 @@
     dctx.restore();
   }
 
+  // ---- now hand ---------------------------------------------------------------
+  // exact current time, in the INNER ring's fixed frame (same "one angle, both rings agree
+  // this is now" reasoning as the hour-select overlay) - a thin solid line, faded, from the
+  // true centre out to the outer rim. Render-time snapshot like the rest of the dial, no
+  // live tick (see "No live clock tick yet" under Design decisions).
+  function drawNowHand(offInner) {
+    var now = new Date();
+    var mins = normMin(now.getUTCHours() * 60 + now.getUTCMinutes() + now.getUTCSeconds() / 60 + offInner);
+    var deg = hourToAngle(mins / 60);
+    var rad = (deg - 90) * Math.PI / 180;
+    dctx.save();
+    dctx.strokeStyle = document.documentElement.getAttribute("data-theme") === "dark" ? "rgba(255,255,255,0.45)" : "rgba(16,19,26,0.45)";
+    dctx.lineWidth = 1.5;
+    dctx.beginPath();
+    dctx.moveTo(CX, CY);
+    dctx.lineTo(CX + (OUTER.rMid + OUTER.w / 2) * Math.cos(rad), CY + (OUTER.rMid + OUTER.w / 2) * Math.sin(rad));
+    dctx.stroke();
+    dctx.restore();
+  }
+
   // ---- hour-select overlay ---------------------------------------------------
   // selected hours are in the INNER ring's fixed, unrotated frame (hour h always spans
   // hourToAngle(h)..hourToAngle(h+1) on screen, same angle both rings agree "now" is aligned
@@ -240,6 +260,7 @@
     drawCurvedLabel(zOuter.city.toUpperCase(), OUTER.rMid + OUTER.w / 2 + labelGap * 0.6);
     drawCurvedLabel(zInner.city.toUpperCase(), INNER.rMid - INNER.w / 2 - labelGap * 0.6);
     drawHourSelection();
+    drawNowHand(offInner);
   }
 
   function fmtOffset(min) {
