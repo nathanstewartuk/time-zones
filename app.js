@@ -1,5 +1,5 @@
 (function () {
-  var VERSION = "0.2.2"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
+  var VERSION = "0.2.3"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
   var $ = function (id) { return document.getElementById(id); };
   var SIZE = 640, CX = 320, CY = 320; // 40px wider than the ring geometry so the curved outer label has room before the canvas edge clips it
   var GAP = 13;                       // gap dial->dial AND outer-dial->glass-rim (equal)
@@ -128,7 +128,7 @@
   // curved dial-edge label, glyphs oriented radially outward from centre, top-centred.
   function drawCurvedLabel(text, radius) {
     dctx.save();
-    dctx.font = '600 18px "Google Sans", system-ui, sans-serif';
+    dctx.font = '600 22px "Google Sans", system-ui, sans-serif';
     dctx.textAlign = "center"; dctx.textBaseline = "middle";
     dctx.fillStyle = textColor.label;
     var angles = [];
@@ -257,15 +257,14 @@
       var rotOuter = -(offset(state.right, now) - offset(state.left, now)) / 60 * 15;
       var snappedDelta = Math.round((dragPreviewDeg || 0) / 15) * 15;
       var targetOffset = offset(state.left, now) - (rotOuter + snappedDelta) / 15 * 60;
-      // clamp to the real min/max offset in ZONES: an unclamped target past either end
-      // always "nearest-matches" back to that same end zone (dead stop, like a real dial),
-      // but for very large drags it can overshoot into nonsense and match something unrelated.
-      var minOff = Infinity, maxOff = -Infinity;
-      ZONES.forEach(function (z) { var o = offset(z.tz, now); if (o < minOff) minOff = o; if (o > maxOff) maxOff = o; });
-      targetOffset = Math.max(minOff, Math.min(maxOff, targetOffset));
       var best = null, bestDiff = Infinity;
       ZONES.forEach(function (z) {
-        var diff = Math.abs(offset(z.tz, now) - targetOffset);
+        // the dial wraps every 24h (same as the 00-23 hour ring itself), so measure the
+        // SHORTEST distance around that circle, not a raw linear diff. Kiritimati (+14) and
+        // Midway (-11) sit either side of the date line and are barely an hour apart this way -
+        // a plain linear diff would treat them as ~25h apart and dead-stop the drag at each end.
+        var raw = Math.abs(offset(z.tz, now) - targetOffset) % 1440;
+        var diff = Math.min(raw, 1440 - raw);
         if (diff < bestDiff || (diff === bestDiff && z.city.localeCompare(best.city) < 0)) { bestDiff = diff; best = z; }
       });
       dragPreviewDeg = null;
