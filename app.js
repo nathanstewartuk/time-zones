@@ -1,5 +1,5 @@
 (function () {
-  var VERSION = "0.2.0"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
+  var VERSION = "0.2.1"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
   var $ = function (id) { return document.getElementById(id); };
   var SIZE = 640, CX = 320, CY = 320; // 40px wider than the ring geometry so the curved outer label has room before the canvas edge clips it
   var GAP = 13;                       // gap dial->dial AND outer-dial->glass-rim (equal)
@@ -69,10 +69,11 @@
 
   // ---- canvas dial ----------------------------------------------------------
   var dial = $("dial"), dctx = dial.getContext("2d");
-  var textColor = { day: "#3c2d0a", night: "#f7f9ff" };
+  var textColor = { day: "#3c2d0a", night: "#f7f9ff", label: "#10131a" };
   function readThemeColors() {
     textColor.day = document.documentElement.getAttribute("data-theme") === "dark" ? "#3a2804" : "#5a4610";
     textColor.night = "#f7f9ff";
+    textColor.label = document.documentElement.getAttribute("data-theme") === "dark" ? "#f3f5fa" : "#10131a";
   }
 
   // cache each zone's 24 hourly altitudes for a date; keyed by tz+ymd+offset.
@@ -127,10 +128,11 @@
   // curved dial-edge label, glyphs oriented radially outward from centre, top-centred.
   function drawCurvedLabel(text, radius) {
     dctx.save();
-    dctx.font = '600 13px "Google Sans", system-ui, sans-serif';
+    dctx.font = '600 16px "Google Sans", system-ui, sans-serif';
     dctx.textAlign = "center"; dctx.textBaseline = "middle";
+    dctx.fillStyle = textColor.label;
     var angles = [];
-    for (var i = 0; i < text.length; i++) angles.push((dctx.measureText(text[i]).width + 2.5) / radius);
+    for (var i = 0; i < text.length; i++) angles.push((dctx.measureText(text[i]).width + 3) / radius);
     var totalAngle = angles.reduce(function (s, a) { return s + a; }, 0);
     var acc = -totalAngle / 2; // rotate(0) already points up in this translate/rotate scheme (unlike the cos/sin hour-angle convention above)
     dctx.translate(CX, CY);
@@ -139,9 +141,6 @@
       dctx.save();
       dctx.rotate(mid);
       dctx.translate(0, -radius);
-      dctx.lineWidth = 3; dctx.strokeStyle = "rgba(0,0,0,0.45)";
-      dctx.strokeText(text[j], 0, 0);
-      dctx.fillStyle = "rgba(255,255,255,0.94)";
       dctx.fillText(text[j], 0, 0);
       dctx.restore();
       acc += angles[j];
@@ -182,8 +181,10 @@
     });
     drawNumbers(OUTER, altR, rotOuterDisplay);
     drawNumbers(INNER, altL, 0);
-    drawCurvedLabel(zL.city.toUpperCase() + " · DIAL", INNER.rMid - INNER.w / 2 - 14);
-    drawCurvedLabel(zR.city.toUpperCase() + " · DIAL", OUTER.rMid + OUTER.w / 2 + 10);
+    // centred in the gap between the ring's colour edge and the dial's own border (canvas edge outside, same-width mirror inside)
+    var labelGap = CX - (OUTER.rMid + OUTER.w / 2);
+    drawCurvedLabel(zL.city.toUpperCase(), INNER.rMid - INNER.w / 2 - labelGap / 2);
+    drawCurvedLabel(zR.city.toUpperCase(), OUTER.rMid + OUTER.w / 2 + labelGap / 2);
   }
 
   function fmtOffset(min) {
