@@ -1,5 +1,5 @@
 (function () {
-  var VERSION = "0.3.2"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
+  var VERSION = "0.3.3"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
   var $ = function (id) { return document.getElementById(id); };
   var SIZE = 680, CX = 340, CY = 340; // wider than the ring geometry so the curved labels have real room to sit centred in their gap, not hugging the ring
   var GAP = 13;                       // gap dial->dial AND outer-dial->glass-rim (equal)
@@ -159,8 +159,9 @@
 
   // ---- now hand ---------------------------------------------------------------
   // exact current time, in the INNER ring's fixed frame (same "one angle, both rings agree
-  // this is now" reasoning as the hour-select overlay) - a solid line covering both rings only
-  // (inner ring's own inner edge out to the outer ring's outer edge, not into the hollow centre).
+  // this is now" reasoning as the hour-select overlay) - a dashed line covering both rings only
+  // (inner ring's own inner edge out to the outer ring's outer edge, not into the hollow centre),
+  // drawn UNDER the hour numbers (before drawNumbers) so it doesn't sit visually on top of them.
   // Render-time snapshot like the rest of the dial, no live tick (see "No live clock tick yet"
   // under Design decisions).
   function drawNowHand(offInner) {
@@ -170,8 +171,9 @@
     var rad = (deg - 90) * Math.PI / 180;
     var rInner = INNER.rMid - INNER.w / 2, rOuter = OUTER.rMid + OUTER.w / 2;
     dctx.save();
-    dctx.strokeStyle = document.documentElement.getAttribute("data-theme") === "dark" ? "rgba(120,120,120,0.75)" : "rgba(16,19,26,0.45)";
-    dctx.lineWidth = 2.5;
+    dctx.strokeStyle = "#ACACAC";
+    dctx.lineWidth = 3.75; // 2.5 + 50%
+    dctx.setLineDash([7, 5]);
     dctx.beginPath();
     dctx.moveTo(CX + rInner * Math.cos(rad), CY + rInner * Math.sin(rad));
     dctx.lineTo(CX + rOuter * Math.cos(rad), CY + rOuter * Math.sin(rad));
@@ -253,6 +255,7 @@
     [OUTER.rMid + OUTER.w / 2, OUTER.rMid - OUTER.w / 2, INNER.rMid + INNER.w / 2, INNER.rMid - INNER.w / 2].forEach(function (r) {
       dctx.beginPath(); dctx.arc(CX, CY, r, 0, Math.PI * 2); dctx.stroke();
     });
+    drawNowHand(offInner); // under the hour numbers, on top of the colour bands
     drawNumbers(OUTER, altOuter, rotOuterDisplay);
     drawNumbers(INNER, altInner, 0);
     // biased further into the gap (away from the ring, toward the dial's own border/hollow centre) -
@@ -262,7 +265,6 @@
     drawCurvedLabel(zOuter.city.toUpperCase(), OUTER.rMid + OUTER.w / 2 + labelGap * 0.6);
     drawCurvedLabel(zInner.city.toUpperCase(), INNER.rMid - INNER.w / 2 - labelGap * 0.6);
     drawHourSelection();
-    drawNowHand(offInner);
   }
 
   function fmtOffset(min) {

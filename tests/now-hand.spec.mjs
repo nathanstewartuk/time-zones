@@ -17,7 +17,7 @@ async function expectedHandAngle(page) {
   });
 }
 
-test("a solid line covers both rings at the exact current time, but not the hollow centre", async ({ page }) => {
+test("a dashed line covers both rings at the exact current time, but not the hollow centre", async ({ page }) => {
   let angle;
   await test.step("Given a fresh load of the site", async () => {
     await page.goto(PAGE_URL, { waitUntil: "networkidle" });
