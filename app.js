@@ -1,5 +1,5 @@
 (function () {
-  var VERSION = "0.3.1"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
+  var VERSION = "0.3.2"; // ponytail: bump manually alongside `git tag vX.Y.Z`, no build step to auto-inject it
   var $ = function (id) { return document.getElementById(id); };
   var SIZE = 680, CX = 340, CY = 340; // wider than the ring geometry so the curved labels have real room to sit centred in their gap, not hugging the ring
   var GAP = 13;                       // gap dial->dial AND outer-dial->glass-rim (equal)
@@ -159,20 +159,22 @@
 
   // ---- now hand ---------------------------------------------------------------
   // exact current time, in the INNER ring's fixed frame (same "one angle, both rings agree
-  // this is now" reasoning as the hour-select overlay) - a thin solid line, faded, from the
-  // true centre out to the outer rim. Render-time snapshot like the rest of the dial, no
-  // live tick (see "No live clock tick yet" under Design decisions).
+  // this is now" reasoning as the hour-select overlay) - a solid line covering both rings only
+  // (inner ring's own inner edge out to the outer ring's outer edge, not into the hollow centre).
+  // Render-time snapshot like the rest of the dial, no live tick (see "No live clock tick yet"
+  // under Design decisions).
   function drawNowHand(offInner) {
     var now = new Date();
     var mins = normMin(now.getUTCHours() * 60 + now.getUTCMinutes() + now.getUTCSeconds() / 60 + offInner);
     var deg = hourToAngle(mins / 60);
     var rad = (deg - 90) * Math.PI / 180;
+    var rInner = INNER.rMid - INNER.w / 2, rOuter = OUTER.rMid + OUTER.w / 2;
     dctx.save();
-    dctx.strokeStyle = document.documentElement.getAttribute("data-theme") === "dark" ? "rgba(255,255,255,0.45)" : "rgba(16,19,26,0.45)";
-    dctx.lineWidth = 1.5;
+    dctx.strokeStyle = document.documentElement.getAttribute("data-theme") === "dark" ? "rgba(120,120,120,0.75)" : "rgba(16,19,26,0.45)";
+    dctx.lineWidth = 2.5;
     dctx.beginPath();
-    dctx.moveTo(CX, CY);
-    dctx.lineTo(CX + (OUTER.rMid + OUTER.w / 2) * Math.cos(rad), CY + (OUTER.rMid + OUTER.w / 2) * Math.sin(rad));
+    dctx.moveTo(CX + rInner * Math.cos(rad), CY + rInner * Math.sin(rad));
+    dctx.lineTo(CX + rOuter * Math.cos(rad), CY + rOuter * Math.sin(rad));
     dctx.stroke();
     dctx.restore();
   }
