@@ -59,6 +59,16 @@ html {
   background: var(--canvas) radial-gradient(120% 90% at 50% 0%, var(--canvas-2), var(--canvas) 60%) fixed;
   transition: background .5s ease;
 }
+* {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
 body {
   height: 100dvh;
   overflow: hidden;
